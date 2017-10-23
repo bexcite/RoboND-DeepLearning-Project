@@ -2,16 +2,12 @@
 
 [//]: # (Image References)
 
-[corr]: ./results/corr_1000.png
-[dh-params]: ./results/dh-params_1000.png
-[hom-transform]: ./results/hom-transform_1000.png
-[inv-main]: ./results/inv-main_1000.png
-[wrist-pos]: ./results/wrist-pos_1000.png
-[wrist-pos-geom]: ./results/wrist-pos-geom_1000.png
-[q3-deriv]: ./results/q3-deriv_1000.png
-[q2-deriv]: ./results/q2-deriv_1000.png
-[wrist-rot]: ./results/wrist-rot_1000.png
-[wrist-rot-cases]: ./results/wrist-rot-cases_1000.png
+[network_fancy]: ./results/network_fancy.png
+[network]: ./results/network.png
+[train_val_loss]: ./results/train_val_loss.png
+[example_1]: ./results/example_1.png
+[example_2]: ./results/example_2.png
+[example_3]: ./results/example_3.png
 
 ## [Rubric](https://review.udacity.com/#!/rubrics/1155/view) Points
 ### Here I will consider the rubric points individually and describe how I addressed each point in my implementation.  
@@ -21,50 +17,68 @@
 
 #### 1. Provide a write-up / README document including all rubric items addressed in a clear and concise manner. The document can be submitted either in either Markdown or a PDF format.
 
-__The write-up / README should include a statement and supporting figures / images that explain how each rubric item was addressed, and specifically where in the code each step was handled. The write-up should include a discussion of what worked, what didn't and how the project implementation could be improved going forward.
-
-This report should be written with a technical emphasis (i.e. concrete, supporting information and no 'hand-waiving'). Specifications are met if a reader would be able to replicate what you have done based on what was submitted in the report. This means all network architecture should be explained, parameters should be explicitly stated with factual justifications, and plots / graphs are used where possible to further enhance understanding. A discussion on potential improvements to the project submission should also be included for future enhancements to the network / parameters that could be used to increase accuracy, efficiency, etc. It is not required to make such enhancements, but these enhancements should be explicitly stated in its own section titled "Future Enhancements".__
-
 You're reading it! (yep thats left from template from one of the previous projects:)
 
 #### 2. The write-up conveys the an understanding of the network architecture.
 
-__The student clearly explains each layer of the network architecture and the role that it plays in the overall network. The student can demonstrate the benefits and/or drawbacks different network architectures pertaining to this project and can justify the current network with factual data. Any choice of configurable parameters should also be explained in the network architecture.
+Network architecture used for the task employs 3 encoder layers with separable convolutions and batch normalization, 1x1 convolution to essentially learn segments with preserving spacial information and 3 decoder layer with bilinear upsampling and skip layers to relevant encoder layers. See figure below for details.
 
-The student shall also provide a graph, table, diagram, illustration or figure for the overall network to serve as a reference for the reviewer.__
+![Network][network_fancy]
 
-TODO: here
+And text summary for `model.summary()`:
 
-![DH Parameters][dh-params]
+![Network text][network]
+
+1x1 convolution used instead of fully connected layers in order to preserve the spatial information. They are also useful for connecting already trained classifier like VGG of ResNet to the decoder layer and fine tune network for the segmentation task. Though, we don't use the fine tuning here and use the architecture to learn end-to-end segmentation task.
+
+Batch Normalization helps network automatically determines the scaling and shifting of the input data and these parameters are learning together with all weights.
+
+Separable Convolutions decouple spatial and depth convolutions and greatly decreases the number of parameters in 5-8 times compared to standard convolutions. This helps to train network faster and what's more important to faster execute them on smaller embedded computing platforms usually used in robotics.
+
+Skip layers important to add more information to the network after upsampling operation which is lossy and reduce the information about original picture. With skip layers network is able to learn finer details about shapes which we needed for our segmentation task. In other words skip layers are adding spatial resolution to our decoder.
+
 
 #### 3. The write-up conveys the student's understanding of the parameters chosen for the the neural network.
 
-__The student explains their neural network parameters including the values selected and how these values were obtained (i.e. how was hyper tuning performed? Brute force, etc.) Hyper parameters include, but are not limited to:
+Network was trained using the parameters:
 
-Epoch
-Learning Rate
-Batch Size
-Etc.
-All configurable parameters should be explicitly stated and justified.__
+```
+learning_rate = 0.0005
+batch_size = 20
+num_epochs = 40
+steps_per_epoch = 250
+```
 
-TODO: here
+After experimentation with various params we've found that smaller batch size works better and it's in the range that often used in papers for the task pf segmentation.
 
-![Homogeneous transformations][hom-transform]
+Learning rate used `0.0005` which is smaller than usually used `0.005` or `0.001` because we used bigger number of epochs (on Nvidia GTX 1080 Ti) and the final score with lower learning rate and bigger number of epochs was better.
+
+Steps per epoch was increased to `250` in order to cover all images in training set. Though it's slightly bigger than needed but it wasn't a problem for network to learn correctly.
+
+Loss and Validation loss graph are below. Loss decrease is almost flattened but still is lowering a bit in 5-10 epochs.
+
+![Train Validation Loss][train_val_loss]
+
+Example of predictions on validation images:
+
+![Example 1][example_1]
+![Example 2][example_2]
+![Example 3][example_3]
+
+**Final Score: 41.34%**
 
 #### 4. The student has a clear understanding and is able to identify the use of various techniques and concepts in network layers indicated by the write-up.
 
-__The student is demonstrates a clear understanding of 1 by 1 convolutions and where/when/how it should be used.
+1 by 1 convolutions described in network architecture part above and we use them to learn important features in images without loosing spatial information.
 
-The student demonstrates a clear understanding of a fully connected layer and where/when/how it should be used.__
-
-![Inverse kinematics arm position][inv-main]
-
+Fully connected layers are not used here because they usually common in classification task where spatial information are not so important.
 
 #### 5. The student has a clear understanding of image manipulation in the context of the project indicated by the write-up.
 
-__The student is able to identify the use of various reasons for encoding / decoding images, when it should be used, why it is useful, and any problems that may arise.__
-
+For training and inferencing we used 160x160x3 images in RGB encoding. It's always important to have color encoding in train vs inference pipeline. Before inference in `follower.py` we also resizing images to the expected 128x128x3. Theoretically network can work with bigger images but we've not tested such setup.
 
 #### 6. The student displays a solid understanding of the limitations to the neural network with the given data chosen for various follow-me scenarios which are conveyed in the write-up.
 
-__The student is able to clearly articulate whether this model and data would work well for following another object (dog, cat, car, etc.) instead of a human and if not, what changes would be required.__
+Such network architecture definitely can be used for any object detection but we need to train it on correctly prepared data (labeled images with the correct ground truth).
+
+Current network result could be further approved by adding more data for specific cases and using data augmentation like flipping and/or shifting.
