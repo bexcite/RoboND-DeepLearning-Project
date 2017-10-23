@@ -71,11 +71,19 @@ Example of predictions on validation images:
 
 1 by 1 convolutions described in network architecture part above and we use them to learn important features in images without loosing spatial information.
 
+**Update, after a review:** 1 by 1 convolutions can be use to reduce dimensionality, like  a layer 20x20x128 on convolution with 64 filters of 1x1 would result in size 20x20x64. 1x1 convolution is often followed by activation layer which is acting like feature pooling transformations that preserves coordinate space, it's different than just sum pooling layers. Also 1x1 convolutions has much less number of parameters than fully connected layers in case we want to learn reduced feature representation vector of our image.
+
 Fully connected layers are not used here because they usually common in classification task where spatial information are not so important.
 
 #### 5. The student has a clear understanding of image manipulation in the context of the project indicated by the write-up.
 
 For training and inferencing we used 160x160x3 images in RGB encoding. It's always important to have color encoding in train vs inference pipeline. Before inference in `follower.py` we also resizing images to the expected 128x128x3. Theoretically network can work with bigger images but we've not tested such setup.
+
+**Update, after a review:**
+
+The set of convolutional encoders are used to learn distinctive feature maps from the image. It's gradually reduces the spatial dimension of the input. Later some of the encoded layers are used in decoder via skip connections to add more spatial resolution to learned feature vectors during the image recovery.
+
+The role of the decoder is to map the low resolution encoder feature maps to full input resolution feature maps for pixel-wise classification.
 
 #### 6. The student displays a solid understanding of the limitations to the neural network with the given data chosen for various follow-me scenarios which are conveyed in the write-up.
 
